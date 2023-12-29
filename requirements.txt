@@ -1,0 +1,7 @@
+astropy
+wxpython
+numpy
+opencv-python
+scikit-learn
+imutils
+matplotlib
