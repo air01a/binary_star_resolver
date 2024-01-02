@@ -1,12 +1,12 @@
 
 from image_utils.image_utils import calculate_line, calculate_perp, detect_and_remove_lines, erase_principal_disk, \
-                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction
+                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks
 from image_utils.processing import AstroImageProcessing
 from structure.message_queue import Message_Queue
 import numpy as np
 import cv2
 
-class ProcessingController:
+class FrequencyAnalyzer:
 
     def __init__(self, broadcaster_out):
         self.min_value = 3000
@@ -35,7 +35,7 @@ class ProcessingController:
         #### Apply mean filter substraction to remove noise
         h,w = self.spatial.shape
         spatial_elipse = np.absolute(AstroImageProcessing.apply_mean_mask_subtraction(self.spatial,self.mean_f))
-        #spatial_elipse=65535*spatial_elipse[1:h-1,1:w-1]/spatial_elipse.max()
+        spatial_elipse=spatial_elipse[1:h-1,1:w-1]
         
 
         self.spatial_elipse=AstroImageProcessing.normalize(detect_and_remove_lines(spatial_elipse)) * 65535
@@ -85,9 +85,21 @@ class ProcessingController:
         
         return erased_image
     
+
+    def isolate_peaks(self):
+        (x,y,x2,y2)=detect_peaks(self.erased_image)
+        result = self.erased_image.copy()
+        h,w = self.spatial.shape
+        result = result[1:h-1,1:w-1]
+        cv2.circle(result,(x2,y2),2,result.max()*1.1,-1)
+        cv2.circle(result,(x,y),2,result.max()*1.1,-1)
+        return result
+
+
+
     def analyze_peaks(self):
         #### Slice the image along the elipse main axe
-        curve = slice_from_direction(self.erased_image,self.m, (self.x_C,self.y_C))
+        curve = slice_from_direction(cv2.GaussianBlur(self.erased_image, (5, 5), 0),self.m, (self.x_C,self.y_C))
 
         #### Find peaks using gradients
         peaks,grads = find_peaks(curve)

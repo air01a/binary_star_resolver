@@ -5,6 +5,7 @@ from image_utils.image_manager import ImageManager,SerManager
 from os import listdir
 from os.path import splitext, isfile, isdir
 from image_utils.processing import AstroImageProcessing
+from findpeaks import findpeaks
 
 
 def calculate_line(point_a, point_b, variance=0.0):
@@ -229,6 +230,8 @@ def load_speckle_images(image_files):
     for index, im in enumerate(tab):
         if tab[index] is not None and len(tab[index]>0):
             output.append(AstroImageProcessing.resize_with_padding(im, max_size, max_size))
+
+    output = order_by_peak(output)
     return output
 
 def get_image_from_directory(dir):
@@ -237,6 +240,8 @@ def get_image_from_directory(dir):
         file_path = dir + '/' + file
         if isfile(file_path) and splitext(file_path)[1]=='.fit':
             image_files.append(file_path)
+
+    
     return image_files
 
 
@@ -279,3 +284,28 @@ def sum_aligned_images(images):
         i+=1
 
     return sum_image/i
+
+def detect_peaks(image):
+    gray = (255*(image - image.min())/(image.max()-image.min())).astype(np.uint8)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    fp = findpeaks(method='mask',denoise="mean")
+
+    res=(fp.fit(blurred)['Xdetect']*image)
+    (x,y) = find_brightest_pixel(res)
+    res[y,x]=0
+    (x2,y2) = find_brightest_pixel(res)
+
+    #cv2.circle(image,(x2,y2),2,image.max()*1.1,-1)
+    #cv2.circle(image,(x,y),2,image.max()*1.1,-1)
+    #-show_image(image)
+    return (x,y, x2,y2)
+
+
+def order_by_peak(images):
+    best_frames = []
+
+    for index, im in enumerate(images):
+        best_frames.append([im.max(), im])
+    sorted_result = sorted(best_frames, key=lambda x: x[0], reverse=True)
+    result = [r[1] for r in sorted_result]
+    return result

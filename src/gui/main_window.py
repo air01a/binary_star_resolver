@@ -55,8 +55,9 @@ class MainFrame(wx.Frame):
         self.add_sliders_to_panel(self.panel3)
 
         self.panel4 = wx.Panel(self.splitter_sliders, style=wx.SUNKEN_BORDER)
-        self.peak_graph = plt.Figure()
-        self.canvas = FigureCanvas(self.panel4, -1, self.peak_graph)
+        self.result_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panel4.SetSizer(self.result_sizer)
+
         # Panel for error messages
         self.panel_error = wx.Panel(self.splitter_error, style=wx.SUNKEN_BORDER)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -109,7 +110,7 @@ class MainFrame(wx.Frame):
 
         left_panel_width = self.splitter1.GetSashPosition()
         self.splitter_images.SetSashPosition(self.GetSize().GetHeight() - 250)
-        self.canvas.SetSize(self.panel4.GetSize())
+        #self.canvas.SetSize(self.panel4.GetSize())
         event.Skip() 
 
     def event_rooting(self, event_type, event_data):
@@ -120,6 +121,7 @@ class MainFrame(wx.Frame):
             case 2:
                 self.images = event_data
                 self.reset_image_sizer()
+                self.reset_result_sizer()
                 for index,im in enumerate(self.images[:100]):
                     wx.CallAfter(self.add_numpy_grayscale_image_to_scrolled_panel,self.scrolled_panel1,im,index)
                     self.scrolled_panel1.FitInside()
@@ -127,6 +129,7 @@ class MainFrame(wx.Frame):
 
             case 3:
                 self.clear_graphs()
+                self.reset_result_sizer()
 
             case 4:
                 wx.CallAfter(self.add_matplotlib_peak,event_data)
@@ -162,19 +165,29 @@ class MainFrame(wx.Frame):
         self.images_ptr.append(bitmap_control)
         self.image_sizer.Layout()
 
-    def reset_image_sizer(self):
 
-
+    def reset_sizer(self, sizer):
         for child in self.image_sizer.GetChildren():
             widget = child.GetWindow()
             self.image_sizer.Remove(0)
             if widget:
                 widget.Destroy()
             del child
+
+
+    def reset_image_sizer(self):
+
+
+        self.reset_sizer(self.image_sizer)
         self.image_sizer.Clear()
         
-
         self.scrolled_panel1.Layout()
+        self.Layout()
+
+    def reset_result_sizer(self):
+        self.reset_sizer(self.result_sizer)
+        self.result_sizer.Clear()
+        self.panel4.Layout()
         self.Layout()
 
     def on_image_click(self, event, image_index):
@@ -224,16 +237,29 @@ class MainFrame(wx.Frame):
         (fig,ax) = self.generate_matplotlib(graph)
         canvas = FigureCanvas(self.panel2, -1, fig)
         self.graph_sizer.Add(canvas, 1, wx.EXPAND)
+
         self.graph_sizer.Layout()
         self.panel2.FitInside()
         plt.close()
 
     def add_matplotlib_peak(self, graph):
+        self.peak_graph = plt.Figure()
+        self.canvas = FigureCanvas(self.panel4, -1, self.peak_graph)
         (graph, peak1, peak2, lm, lr)=graph
         (self.fig_peak,ax) = self.generate_matplotlib(graph,(self.panel4.GetSize()[0],self.panel4.GetSize()[0]))
         self.canvas = FigureCanvas(self.panel4, -1, self.fig_peak)
-        print(self.panel4.GetSize())
-        self.canvas.draw()
+        self.result_sizer.Add(self.canvas)
+        if graph.lines!=None:
+            x1 = graph.lines[0]
+            x2 = graph.lines[1]
+            dist = (abs(x1)+abs(x2))/2 * 0.099
+            text = wx.StaticText( self.panel4, label="Rho " + str(dist))
+            self.result_sizer.Add(text)
+            text2 = wx.StaticText( self.panel4, label="Peak1 " + str(abs(x1)))
+            text3 = wx.StaticText( self.panel4, label="Peak1 " + str(abs(x2)))
+            self.result_sizer.Add(text2)
+            self.result_sizer.Add(text3)
+        self.result_sizer.Layout()
         self.panel4.FitInside()
         plt.close()
 
