@@ -3,16 +3,19 @@ from structure.message_queue import Message_Queue
 
 from image_utils.image_utils import load_speckle_images, get_image_from_directory
 from analyzer.frequency import FrequencyAnalyzer
+from analyzer.visible import VisibleAnalyzer
 from structure.plot_graph import PlotGraph
-from os.path import splitext, isfile, isdir
+from os.path import isdir
 
+import utils.constant as CONSTANT
 
 class MainController:
     def __init__(self, broadcaster_gui, broadcaster_out):
         self.broadcaster_gui = broadcaster_gui
         self.broadcaster_out = broadcaster_out
         thread = threading.Thread(target=self.main_controller)
-        self.frequencyAnalyzer = FrequencyAnalyzer(self.broadcaster_out)
+        self.frequencyAnalyzer = FrequencyAnalyzer()
+        self.visibleAnalyzer = VisibleAnalyzer()
         thread.start()
 
     def calculate_psd(self):
@@ -21,17 +24,29 @@ class MainController:
         self.spectral_density = self.frequencyAnalyzer.psd(self.images)
 
     def psd(self):
-        self.broadcaster_out.put(Message_Queue(1,PlotGraph(self.spectral_density,"Fonction de densité spéctrale", cmap="viridis")))
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,PlotGraph(self.spectral_density,"Fonction de densité spéctrale", cmap="viridis",num=0)))
 
 
     def mean_filter(self):
         self.frequencyAnalyzer.mean_filter()
 
     def get_ellipse(self):
-        self.broadcaster_out.put(Message_Queue(1,PlotGraph(self.frequencyAnalyzer.find_ellipse(),"Ellipse", cmap="viridis")))
+        try:
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,PlotGraph(self.frequencyAnalyzer.find_ellipse(),"Ellipse", cmap="viridis",num=2)))
+            return True
+        except:
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ERROR,"Error, no ellipse found, please use cursors to help to identify it"))
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_CLEAR_FREQUENCY,[2,3]))
+            return False
 
     def minor_major_star(self):
-        self.broadcaster_out.put(Message_Queue(1,PlotGraph(self.frequencyAnalyzer.get_minus_major_star(),"Minus major star", cmap="viridis")))
+        try:
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,PlotGraph(self.frequencyAnalyzer.get_minus_major_star(),"Minus major star", cmap="viridis",num=3)))
+            return True
+        except:
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ERROR,"Error minoring main peak, the ellipse may be not a good one, please use cursor to redefine it"))
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_CLEAR_FREQUENCY,[3]))
+            return False
 
     def find_peaks(self):
         (x,y, lines, dist1, dist2, lm, lr) = self.frequencyAnalyzer.analyze_peaks()
@@ -39,40 +54,61 @@ class MainController:
         #self.broadcaster_out.put(Message_Queue(1,PlotGraph(self.frequencyAnalyzer.isolate_peaks(),"Peaks", cmap="viridis")))
 
         self.broadcaster_out.put(Message_Queue(4,graph))
+        self.broadcaster_out.put(Message_Queue(6,((abs(dist1) + abs(dist2))/2, dist1, dist2)))
         #self.broadcaster_out.put(Message_Queue(5,self.frequencyAnalyzer.rho))
 
     def clip(self):
-        self.broadcaster_out.put(Message_Queue(1,PlotGraph(self.frequencyAnalyzer.clip(),"Mean filter", cmap="viridis")))
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,PlotGraph(self.frequencyAnalyzer.clip(),"Mean filter", cmap="viridis",num=1)))
 
     def calculation_loop(self):
         #self.frequencyAnalyzer.process(self.psd)
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NO_ERROR,None))
         self.psd()
         self.clip()
-        self.get_ellipse()
-        self.minor_major_star()
-        self.find_peaks()
+        if self.get_ellipse():
+            if self.minor_major_star():
+                self.find_peaks()
+        
+
+    def visible_calculation_loop(self):
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_CLEAR_VISIBLE_GRAPH,None))
+        (im1, im2) = self.visibleAnalyzer.stack_best(self.images)
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_VISIBLE_GRAPH,PlotGraph(im1,"Visible stacking", cmap="viridis")))
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_VISIBLE_GRAPH,PlotGraph(im2,"Visible stacking mean", cmap="viridis")))
+        x1,y1,x2,y2 = self.visibleAnalyzer.get_peaks()
+        im = self.visibleAnalyzer.draw_peaks(im1,x1,y1,x2,y2)
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_VISIBLE_GRAPH,PlotGraph(im,"Peaks in visible", cmap="viridis")))
+
+        rho = 0.099*((x1-x2)**2 + (y1-y2)**2)**0.5
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_UPDATE_RESULT_VISIBLE,rho))
+
+
 
     def event_routing(self, event_type, event_data):
+        print("Main controller event rooting : "+str(event_type))
         match event_type:
             # New directory
-            case 1001:
-                self.broadcaster_out.put(Message_Queue(3,None))
+            case CONSTANT.EVENT_NEW_DIR:
+                self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_CLEAR_FREQUENCY_GRAPH,None))
                 if isdir(event_data):
                     paths = get_image_from_directory(event_data)
                 else:
                     paths=event_data
                 self.images = load_speckle_images(paths)
-                self.broadcaster_out.put(Message_Queue(2,self.images))
+                self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_SPECKLE_IMAGE,self.images))
                 self.calculate_psd()
                 self.mean_filter()
                 self.calculation_loop()
+                self.visible_calculation_loop()
             # Sliders change
-            case 1002:
+            case CONSTANT.EVENT_NEW_PARAMS:
                 self.frequencyAnalyzer.min_value = event_data["min"]
                 self.frequencyAnalyzer.max_value = event_data["max"]
                 self.frequencyAnalyzer.radius = event_data["radius"]
-                self.broadcaster_out.put(Message_Queue(3,None))
                 self.calculation_loop()
+            case CONSTANT.EVENT_NEW_NUMBER:
+                self.visibleAnalyzer.number_of_images=event_data["number"]
+                self.visible_calculation_loop()
 
     def main_controller(self):
         while True:

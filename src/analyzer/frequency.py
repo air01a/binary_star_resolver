@@ -8,7 +8,7 @@ import cv2
 
 class FrequencyAnalyzer:
 
-    def __init__(self, broadcaster_out):
+    def __init__(self):
         self.min_value = 3000
         self.max_value = 40000
         self.mean_f = 3
@@ -70,7 +70,7 @@ class FrequencyAnalyzer:
         vectors = []
         for variance in range(-10,10):
             
-            vectors.append(get_vector_from_direction(self.spatial_elipse,m_perp*(1+variance/100),(self.x_C,self.y_C),2*int(self.minor_axe)))
+            vectors.append(get_vector_from_direction(self.spatial_elipse,m_perp*(1+variance/100),(self.x_C,self.y_C),int(10*self.minor_axe)))
         vectors = np.array(vectors)
         vec = sum(vectors)/len(vectors)
 

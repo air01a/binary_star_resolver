@@ -9,6 +9,9 @@ from .image_format import image_format_to_wx
 import cv2
 from .loader import LoadingDialog
 from .menubar import MenuBar
+from .results_panel import ResultsPanel
+from .notebook import NoteBookResults
+import utils.constant as CONSTANT
 
 class MainFrame(wx.Frame):
     def __init__(self,broadcaster_in, broadcaster_out):
@@ -44,40 +47,37 @@ class MainFrame(wx.Frame):
         self.zoom_image = wx.Panel(self.splitter_images, style=wx.SUNKEN_BORDER)
 
         # Panel with graphs
-        self.panel2 = wx.ScrolledWindow(self.splitter2, style=wx.SUNKEN_BORDER)
-        self.panel2.SetScrollbars(20, 20, 50, 50)
-        self.graph_sizer = wx.FlexGridSizer(cols=2, vgap=10, hgap=10)# Sizer to organize graph
-        self.panel2.SetSizer(self.graph_sizer)
-
+        self.panel_graph = NoteBookResults(parent=self.splitter2, style=wx.SUNKEN_BORDER)
 
         # Panel with sliders
         self.panel3 = wx.Panel(self.splitter_sliders, style=wx.SUNKEN_BORDER)
         self.add_sliders_to_panel(self.panel3)
 
-        self.panel4 = wx.Panel(self.splitter_sliders, style=wx.SUNKEN_BORDER)
-        self.result_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.panel4.SetSizer(self.result_sizer)
+        self.resultsPanel = ResultsPanel(self.splitter_sliders, style=wx.SUNKEN_BORDER)
+
 
         # Panel for error messages
         self.panel_error = wx.Panel(self.splitter_error, style=wx.SUNKEN_BORDER)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Créer une barre de progression
-        self.progress_bar = wx.Gauge(self.panel_error, range=100, style=wx.GA_HORIZONTAL)
-        self.progress_bar.Hide()
-        sizer.Add(self.progress_bar, 0, wx.ALL | wx.EXPAND, 10)
+        #self.progress_bar = wx.Gauge(self.panel_error, range=100, style=wx.GA_HORIZONTAL)
+        #self.progress_bar.Hide()
+        #sizer.Add(self.progress_bar, 0, wx.ALL | wx.EXPAND, 10)
+        self.error = wx.StaticText(self.panel_error, label="Max Value :")
+        sizer.Add( self.error)
         self.no_error()
 
         self.splitter_images.SplitHorizontally(self.scrolled_panel1, self.zoom_image)
         self.splitter1.SplitVertically(self.splitter_images, self.splitter_error)
-        self.splitter2.SplitVertically(self.panel2, self.splitter_sliders)
+        self.splitter2.SplitVertically(self.panel_graph, self.splitter_sliders)
         self.splitter_error.SplitHorizontally(self.splitter2, self.panel_error)
-        self.splitter_sliders.SplitHorizontally(self.panel3, self.panel4)
+        self.splitter_sliders.SplitHorizontally(self.panel3, self.resultsPanel)
         self.splitter2.SetSashGravity(0.8)
         self.splitter1.SetSashPosition(200) 
 
 
-        self.splitter_sliders.SetSashPosition(200) 
+        self.splitter_sliders.SetSashPosition(220) 
         self.Bind(wx.EVT_SIZE, self.on_resize)
 
         self.thread.start()
@@ -102,39 +102,65 @@ class MainFrame(wx.Frame):
             self.loading_dialog = None
 
     def no_error(self):
+        self.error.SetLabel("No error")
         self.panel_error.SetBackgroundColour("green")
+        self.panel_error.Refresh()
+        self.panel_error.Update()
+
+    def show_error(self,error):
+        self.panel_error.SetBackgroundColour("red")
+        self.error.SetLabel(error)
+        self.panel_error.Refresh()
+        self.panel_error.Update()
+
 
     def on_resize(self, event):
         # Ajuster la position du séparateur pour fixer la taille du panneau inférieur
-        self.splitter_error.SetSashPosition(self.GetSize().GetHeight() - 70)
+        self.splitter_error.SetSashPosition(self.GetSize().GetHeight() - 100)
 
         left_panel_width = self.splitter1.GetSashPosition()
         self.splitter_images.SetSashPosition(self.GetSize().GetHeight() - 250)
-        #self.canvas.SetSize(self.panel4.GetSize())
-        event.Skip() 
+        print("on resize end")
 
     def event_rooting(self, event_type, event_data):
+        print("Main window event rooting : "+str(event_type))
+
         match event_type:
-            case 1:
-                wx.CallAfter(self.add_matplotlib_graphs,event_data)
-                
-            case 2:
+            case CONSTANT.EVENT_ADD_FREQUENCY_GRAPH:
+                wx.CallAfter(self.panel_graph.frequency.add_graph,event_data)
+            case CONSTANT.EVENT_ADD_VISIBLE_GRAPH:
+                wx.CallAfter(self.panel_graph.visible.add_graph,event_data)
+            case CONSTANT.EVENT_ADD_SPECKLE_IMAGE:
+                self.no_error()
                 self.images = event_data
                 self.reset_image_sizer()
-                self.reset_result_sizer()
                 for index,im in enumerate(self.images[:100]):
                     wx.CallAfter(self.add_numpy_grayscale_image_to_scrolled_panel,self.scrolled_panel1,im,index)
                     self.scrolled_panel1.FitInside()
                 self.close_loading_dialog()
 
-            case 3:
-                self.clear_graphs()
-                self.reset_result_sizer()
+            case CONSTANT.EVENT_CLEAR_FREQUENCY_GRAPH:
+                self.panel_graph.frequency.clear()
+            case CONSTANT.EVENT_CLEAR_VISIBLE_GRAPH:
+                self.panel_graph.visible.clear()
+            case CONSTANT.EVENT_UPDATE_RESULT_GRAPH:
+                wx.CallAfter(self.resultsPanel.update_graph,event_data)
 
-            case 4:
-                wx.CallAfter(self.add_matplotlib_peak,event_data)
+            case CONSTANT.EVENT_UPDATE_RESULT_VISIBLE:
+                wx.CallAfter(self.resultsPanel.update_results_visible,event_data)
 
-            case 2001:
+            case CONSTANT.EVENT_UPDATE_RESULT_CORRELATION:
+                wx.CallAfter(self.resultsPanel.update_results_frequency,event_data)
+            case CONSTANT.EVENT_NO_ERROR:
+                self.no_error()
+
+            case CONSTANT.EVENT_ERROR:
+                self.show_error(event_data)
+
+            case CONSTANT.EVENT_CLEAR_FREQUENCY:
+                self.panel_graph.frequency.clear(event_data)
+            
+            case CONSTANT.EVENT_NEW_SPECKLES_IMAGE:
                 self.broadcaster_out.put(Message_Queue(1001,event_data))
                 self.open_loader()
 
@@ -184,84 +210,13 @@ class MainFrame(wx.Frame):
         self.scrolled_panel1.Layout()
         self.Layout()
 
-    def reset_result_sizer(self):
-        self.reset_sizer(self.result_sizer)
-        self.result_sizer.Clear()
-        self.panel4.Layout()
-        self.Layout()
+
 
     def on_image_click(self, event, image_index):
         im_norm = cv2.resize(image_format_to_wx(self.images[image_index]),(200,200))
         height, width = im_norm.shape[:2]
         bitmap = wx.Bitmap.FromBuffer(width, height, im_norm)
         wx.StaticBitmap(self.zoom_image, -1, bitmap)
-
-
-    def clear_graphs(self):
-        # Méthode pour effacer les graphiques existants
-        for child in self.graph_sizer.GetChildren():
-            widget = child.GetWindow()
-            if widget: 
-                widget.Destroy()
-        self.graph_sizer.Clear()
-        self.panel2.Refresh()
-        self.panel2.Update()
-
-
-    def generate_matplotlib(self, graph, size=None):
-        fig, ax = plt.subplots()
-        if size!=None:
-            dpi = 100
-
-            # Convertir la taille en pixels en pouces
-            inches_width = size[0] / dpi
-            inches_height = size[1] / dpi
-            fig.set_dpi(dpi)
-            fig.set_figheight(inches_height)
-            fig.set_figwidth(inches_width)
-        if graph.type=='image':
-            ax.imshow(graph.graph,cmap=graph.cmap)
-        elif graph.type=='plot':
-            (x,y) = graph.graph
-            ax.plot(x,y)
-        
-        if graph.lines!=None:
-            for i in graph.lines:
-                ax.axvline(x=i, color='r', linestyle='--')
-
-
-        ax.set_title(graph.title)
-        return fig,ax
-
-    def add_matplotlib_graphs(self, graph):
-        (fig,ax) = self.generate_matplotlib(graph)
-        canvas = FigureCanvas(self.panel2, -1, fig)
-        self.graph_sizer.Add(canvas, 1, wx.EXPAND)
-
-        self.graph_sizer.Layout()
-        self.panel2.FitInside()
-        plt.close()
-
-    def add_matplotlib_peak(self, graph):
-        self.peak_graph = plt.Figure()
-        self.canvas = FigureCanvas(self.panel4, -1, self.peak_graph)
-        (graph, peak1, peak2, lm, lr)=graph
-        (self.fig_peak,ax) = self.generate_matplotlib(graph,(self.panel4.GetSize()[0],self.panel4.GetSize()[0]))
-        self.canvas = FigureCanvas(self.panel4, -1, self.fig_peak)
-        self.result_sizer.Add(self.canvas)
-        if graph.lines!=None:
-            x1 = graph.lines[0]
-            x2 = graph.lines[1]
-            dist = (abs(x1)+abs(x2))/2 * 0.099
-            text = wx.StaticText( self.panel4, label="Rho " + str(dist))
-            self.result_sizer.Add(text)
-            text2 = wx.StaticText( self.panel4, label="Peak1 " + str(abs(x1)))
-            text3 = wx.StaticText( self.panel4, label="Peak1 " + str(abs(x2)))
-            self.result_sizer.Add(text2)
-            self.result_sizer.Add(text3)
-        self.result_sizer.Layout()
-        self.panel4.FitInside()
-        plt.close()
 
 
     def add_sliders_to_panel(self, panel):
@@ -281,21 +236,36 @@ class MainFrame(wx.Frame):
         self.label_radius = wx.StaticText(panel, label="Radius :")
         slider3 = wx.Slider(panel, value=1, minValue=1, maxValue=10, style=wx.SL_HORIZONTAL)
         slider3.Bind(wx.EVT_LEFT_UP, self.on_slider_change)
-        self.sliders = [slider1, slider2, slider3]
-        slider_sizer.Add(self.label_min, 0, wx.ALL | wx.LEFT, 5)
-        slider_sizer.Add(slider1, 1, wx.EXPAND | wx.ALL, 1)
-        slider_sizer.Add(self.label_max, 0, wx.ALL | wx.LEFT, 5)
-        slider_sizer.Add(slider2, 1, wx.EXPAND | wx.ALL, 1)
-        slider_sizer.Add(self.label_radius, 0, wx.ALL | wx.LEFT, 5)
 
-        slider_sizer.Add(slider3, 1, wx.EXPAND | wx.ALL, 1)
+        self.label_images_number = wx.StaticText(panel, label="Number of images :")
+        slider4 = wx.Slider(panel, value=10, minValue=10, maxValue=100, style=wx.SL_HORIZONTAL)
+        slider4.Bind(wx.EVT_LEFT_UP, self.on_slider_change_images_number)
+
+        self.sliders = [slider1, slider2, slider3, slider4]
+        slider_sizer.Add(self.label_min, 0, wx.ALL | wx.LEFT, 5)
+        slider_sizer.Add(slider1, 0, wx.EXPAND | wx.ALL, 1)
+        slider_sizer.Add(self.label_max, 0, wx.ALL | wx.LEFT, 5)
+        slider_sizer.Add(slider2, 0, wx.EXPAND | wx.ALL, 1)
+        slider_sizer.Add(self.label_radius, 0, wx.ALL | wx.LEFT, 5)
+        slider_sizer.Add(slider3, 0, wx.EXPAND | wx.ALL, 1)
+        slider_sizer.Add(self.label_images_number, 0, wx.ALL | wx.LEFT, 5)
+        slider_sizer.Add(slider4, 0, wx.EXPAND | wx.ALL, 1)
 
         panel.SetSizer(slider_sizer)
         slider_sizer.Layout()
 
     def on_slider_change(self, event):
+        print(event)
         min = self.sliders[0].GetValue()
         max = self.sliders[1].GetValue()
         radius = self.sliders[2].GetValue()
-        self.broadcaster_out.put(Message_Queue(1002,{"min":min, "max":max,"radius":radius}))
-        event.Skip()  
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NEW_PARAMS,{"min":min, "max":max,"radius":radius}))
+        event.Skip() 
+
+
+    def on_slider_change_images_number(self, event):
+        print(event)
+        images_number = self.sliders[3].GetValue()
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NEW_NUMBER,{"number":images_number}))
+        event.Skip()   
+

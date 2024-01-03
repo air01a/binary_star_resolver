@@ -12,4 +12,7 @@ class LoadingDialog:
         self.splash.Show()
 
     def close(self):
-        self.splash.Close()
+        try:
+            self.splash.Close()
+        except:
+            print("Splash screen already closed")

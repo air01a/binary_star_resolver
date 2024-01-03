@@ -301,6 +301,21 @@ def detect_peaks(image):
     return (x,y, x2,y2)
 
 
+
+def isolate_peaks(image):
+    gray = (255*(image - image.min())/(image.max()-image.min())).astype(np.uint8)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    fp = findpeaks(method='mask',denoise="mean")
+
+    res=(fp.fit(blurred)['Xdetect']*blurred)
+    (x,y) = find_brightest_pixel(res)
+    res[y,x]=0
+    (x2,y2) = find_brightest_pixel(res)
+
+    return (x,y, x2,y2)
+
+
 def order_by_peak(images):
     best_frames = []
 
