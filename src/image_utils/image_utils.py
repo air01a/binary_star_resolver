@@ -74,8 +74,8 @@ def erase_principal_disk(image, vector):
     central_disk = np.zeros((image_size_x, image_size_y))
 
     # Calculer la distance de chaque point au centre de l'image
-    centre_x = image_size_x // 2
-    centre_y = image_size_y // 2
+    centre_x = image_size_x / 2
+    centre_y = image_size_y / 2
     for x in range(image_size_x):
         for y in range(image_size_y):
             distance = np.sqrt((x - centre_x)**2 + (y - centre_y)**2)
@@ -90,28 +90,7 @@ def erase_principal_disk(image, vector):
     image[image<0]=0
     return (image, central_disk)
 
-def find_contours(src):
-    image=(src.copy()/src.max() * 255).astype(np.uint8)
-    image = cv2.bilateralFilter(image, 15, 75, 75) 
-    ret, thresh = cv2.threshold(image, 0.8, 255, 0)
-    contours, hierarchy = cv2.findContours((thresh).astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    contours=sorted(contours, key=cv2.contourArea, reverse=True)
-    return contours
 
-
-def find_ellipse(contour):
-    ellipse = cv2.fitEllipse(contour)
-    centre, axes, angle = ellipse
-    axe1, axe2 = axes[0] / 2, axes[1] / 2
-    major_axe = max(axe1,axe2)
-    minor_axe = min(axe1,axe2)
-    c = np.sqrt(major_axe**2 - minor_axe**2)
-    angle_rad = np.deg2rad(angle-90)
-    focus1 = (int(centre[0] + c * np.cos(angle_rad)), int(centre[1] + c * np.sin(angle_rad)))
-    focus2 = (int(centre[0] - c * np.cos(angle_rad)), int(centre[1] - c * np.sin(angle_rad)))
-
-
-    return (ellipse, major_axe, minor_axe, angle_rad, focus1, focus2)
 
 
 def get_vector_from_direction(image, m, point, max_range):
@@ -163,6 +142,29 @@ def slice_from_direction(image, m, point):
 
     curve = sorted(curve, key=lambda pair: pair[0])
     return curve
+
+def find_contours(src):
+    image=(src.copy()/src.max() * 255).astype(np.uint8)
+    image = cv2.bilateralFilter(image, 15, 75, 75) 
+    ret, thresh = cv2.threshold(image, 0.8, 255, 0)
+    contours, hierarchy = cv2.findContours((thresh).astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours=sorted(contours, key=cv2.contourArea, reverse=True)
+    return contours
+
+
+def find_ellipse(contour):
+    ellipse = cv2.fitEllipse(contour)
+    centre, axes, angle = ellipse
+    axe1, axe2 = axes[0] / 2, axes[1] / 2
+    major_axe = max(axe1,axe2)
+    minor_axe = min(axe1,axe2)
+    c = np.sqrt(major_axe**2 - minor_axe**2)
+    angle_rad = np.deg2rad(angle-90)
+    focus1 = (int(centre[0] + c * np.cos(angle_rad)), int(centre[1] + c * np.sin(angle_rad)))
+    focus2 = (int(centre[0] - c * np.cos(angle_rad)), int(centre[1] - c * np.sin(angle_rad)))
+
+
+    return (ellipse, major_axe, minor_axe, angle_rad, focus1, focus2)
 
 def find_peaks(curve):
     
@@ -223,7 +225,7 @@ def load_speckle_images(image_files):
         max_w = max(w, max_w)
         max_h = max(h, max_h)
     max_size = max(max_w, max_h)
-
+    print(max_size)
     if max_size % 2!=0:
         max_size+=1
     output = []

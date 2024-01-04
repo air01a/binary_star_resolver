@@ -399,7 +399,7 @@ class AstroImageProcessing:
     def average_images(images):
         """ Calcule l'image moyenne à partir d'un ensemble d'images de tavelures. """
         mean_images = mean(images, axis=0)
-        return (mean_images*65535/mean_images.max()).astype(uint16)
+        return mean_images
 
     @staticmethod
     def sum_images(images):

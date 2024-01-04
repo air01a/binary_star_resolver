@@ -1,6 +1,6 @@
 
 from image_utils.image_utils import calculate_line, calculate_perp, detect_and_remove_lines, erase_principal_disk, \
-                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks
+                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks,find_brightest_pixel
 from image_utils.processing import AstroImageProcessing
 from structure.message_queue import Message_Queue
 import numpy as np
@@ -68,10 +68,17 @@ class FrequencyAnalyzer:
 
         #### Get image values along this line
         vectors = []
+        min_vec = 1000
         for variance in range(-10,10):
-            
-            vectors.append(get_vector_from_direction(self.spatial_elipse,m_perp*(1+variance/100),(self.x_C,self.y_C),int(10*self.minor_axe)))
-        vectors = np.array(vectors)
+            vec = get_vector_from_direction(self.spatial_elipse,m_perp*(1+variance/100),(self.x_C,self.y_C),int(2*self.minor_axe))
+            if len(vec)<min_vec:
+                min_vec = len(vec)
+            vectors.append(vec)
+        
+        print("vectors")
+        vectors = np.array(vectors[:][:min_vec])
+        print(" after np vectors")
+
         vec = sum(vectors)/len(vectors)
 
         #### Use these values to extrapole central peak contribution and remove it from the image
@@ -102,34 +109,55 @@ class FrequencyAnalyzer:
         curve = slice_from_direction(cv2.GaussianBlur(self.erased_image, (5, 5), 0),self.m, (self.x_C,self.y_C))
 
         #### Find peaks using gradients
-        peaks,grads = find_peaks(curve)
+        """print(curve)
+        #curve_1 = curve[0:len(curve)//2]
+        #curve_2 = curve[0:len]
+
+        negative_values = curve[curve[:, 0] < 0]
+        positive_values = curve[curve[:, 0] >= 0]
+        
+
+        peaks_n,grads = find_peaks(negative_values)
+        peaks_p,grads = find_peaks(positive_values)
+
+        peaks = find_peaks(curve)
+
+        print(peaks)
 
 
         if len(peaks)>=2:
             peaks = peaks[0:2]
-            dist1 = 0.099*(abs(curve[peaks[1][0]][0]))
-            dist2 = 0.099*(abs(curve[peaks[0][0]][0]))
-           # st.header(f"Distance calculated : {dist1},{dist2}, {(dist1+dist2)/2}")
+            dist1 = (abs(curve[int(peaks[1][0]),0]))
+            dist2 = (abs(curve[int(peaks[0][0]),0]))
+           # st.header(f"Distance calculated : {dist1},{dist2}, {(dist1+dist2)/2}")"""
 
         #### Find peaks using max values along x and -x axis
+        left_max = 0 
+        right_max = 0
+        left_max_index=-1
+        right_max_index = -1
 
-        i=0
-        left_max={}
-        right_max={}
-        while curve[i][0]<0:
-            left_max[curve[i][1]]=curve[i][0]
-            if (i+len(curve)//2)<len(curve):
-                right_max[curve[i+len(curve)//2][1]]=curve[i+len(curve)//2][0]
-            i+=1
-        
-        lm = sorted(left_max.keys(), reverse=True)
-        lr = sorted(right_max.keys(), reverse=True)
-        """print(left_max[lm[0]], right_max[lr[0]])
-        print(left_max[lm[1]], right_max[lr[1]])
-        print(left_max[lm[2]], right_max[lr[2]])"""
+        for i in range(len(curve)):
+            if curve[i][0]<0:
+                if left_max< curve[i][1]:
+                    left_max = curve[i][1]
+                    left_max_index = i
+            if curve[i][0]>0:
+                if right_max< curve[i][1]:
+                    right_max = curve[i][1]
+                    right_max_index = i
+            
+        peaks=[[left_max_index, left_max],[right_max_index,right_max]]
+        dist1 = (abs(curve[peaks[1][0]][0]))
+        dist2 = (abs(curve[peaks[0][0]][0]))
         #st.header(f"Distance calculated : {left_max[lm[0]]},{right_max[lr[0]]}, {0.099*(abs(left_max[lm[0]])+abs(right_max[lr[0]]))/2}")
-
-
+        test=cv2.GaussianBlur(self.erased_image, (5, 5), 0)
+        x1, y1= find_brightest_pixel(test)
+        cv2.circle(test,(x1,y1),int(self.major_axe/2),0,-1)
+        x2,y2 = find_brightest_pixel(test)
+        print(x1,y1,x2,y2)
+        dist1 = ((x1 - self.x_C)**2 + (y1-self.y_C)**2)**0.5
+        dist2 = ((x2 - self.x_C)**2 + (y2-self.y_C)**2)**0.5
         #### Display
 
         #st.header("Analyse des pics dans la direction principale de l'ellipse")
@@ -142,12 +170,5 @@ class FrequencyAnalyzer:
             lines.append(curve[i[0]][0])
             #ax.axvline(x=curve[i[0]][0], color='r', linestyle='--')
         #st.pyplot(fig)
-        
+        lm = lr = 0
         return(x,y,lines, dist1, dist2, lm, lr)
-
-        #fig, ax = plt.subplots()
-        #ax.plot(x[1:-1],grads)
-        for i in peaks:
-            ax.axvline(x=i[0], color='r', linestyle='--')
-        
-        #st.pyplot(fig)

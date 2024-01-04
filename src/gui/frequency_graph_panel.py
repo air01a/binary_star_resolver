@@ -49,7 +49,6 @@ class FrequencyGraphsPanel(wx.ScrolledWindow):
     
     def add_graph_with_num(self, num, graph):
         self.graph = graph
-        #PlotUtils.set_fig_size(self.figures[num][0],(self.GetSize()[0],self.GetSize()[0]))
         self.figures[num][1].clear()
         self.figure = PlotUtils.generate_matplotlib(self.figures[num], graph)
         self.canvas[num].draw()
