@@ -11,6 +11,8 @@ class ResultsPanel(wx.Panel):
         self.parent = parent
         self.visible_result = wx.TextCtrl(self, value="Waiting for result",style=wx.TE_READONLY)
         self.frequency_result = wx.TextCtrl(self, value="Waiting for result",style=wx.TE_READONLY)
+        self.visible_result_angle = wx.TextCtrl(self, value="Waiting for result",style=wx.TE_READONLY)
+        self.frequency_result_angle = wx.TextCtrl(self, value="Waiting for result",style=wx.TE_READONLY)
         self.figure = PlotUtils.get_figure()
         PlotUtils.set_fig_size(self.figure[0],(200,200))
         self.canvas = FigureCanvas(self, -1, self.figure[0])
@@ -23,6 +25,10 @@ class ResultsPanel(wx.Panel):
 
         self.vbox.Add(self.visible_result, proportion=0, flag=wx.EXPAND | wx.ALL, border=5)
         self. vbox.Add(self.frequency_result, proportion=0, flag=wx.EXPAND | wx.ALL,border= 5)
+
+        self.vbox.Add(self.visible_result_angle, proportion=0, flag=wx.EXPAND | wx.ALL, border=5)
+        self.vbox.Add(self.frequency_result_angle, proportion=0, flag=wx.EXPAND | wx.ALL, border=5)
+
         self.SetSizer(self.vbox)
         self.Bind(wx.EVT_SIZE, self.on_resize)
 
@@ -39,11 +45,14 @@ class ResultsPanel(wx.Panel):
         self.Update() 
 
     def update_results_visible(self, result_visible):
-        self.visible_result.SetValue(f"Result visible : rho={result_visible}")
+        self.visible_result.SetValue(f"Rho Visible : {result_visible[0]}")
+        self.visible_result_angle.SetValue(f"Theta Visible : {int(result_visible[1])}°")
 
     def update_results_frequency(self, result_frequency):
-        r, r1, r2 = result_frequency
-        self.frequency_result.SetValue(f"Result Frequency : rho={r:.2f} [{r1}/{r2}]")
+        r, r1, r2, angle = result_frequency
+        self.frequency_result.SetValue(f"Rho corrélation : {r:.2f} [{r1:.2f}/{r2:.2f}]")
+        self.frequency_result_angle.SetValue(f"Theta corrélation(+/- 180°) : {int(angle)} ")
+        
 
 
     def on_resize(self, event):

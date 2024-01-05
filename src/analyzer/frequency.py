@@ -1,6 +1,6 @@
 
 from image_utils.image_utils import calculate_line, calculate_perp, detect_and_remove_lines, erase_principal_disk, \
-                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks,find_brightest_pixel
+                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks,find_brightest_pixel,angle_with_y_axis
 from image_utils.processing import AstroImageProcessing
 from structure.message_queue import Message_Queue
 import numpy as np
@@ -13,12 +13,14 @@ class FrequencyAnalyzer:
         self.max_value = 40000
         self.mean_f = 3
         self.radius=2
+        self.number_of_images = 10
 
 
     def psd(self, images):
         fouriers = []
         psd = []
-        for im in images:
+        n = int(self.number_of_images *len(images)/ 100)
+        for im in images[0:n]:
             fouriers.append(AstroImageProcessing.fourier_transform(im))
             psd.append(np.square(np.abs(AstroImageProcessing.fourier_transform(im))))
         
@@ -156,6 +158,8 @@ class FrequencyAnalyzer:
         cv2.circle(test,(x1,y1),int(self.major_axe/2),0,-1)
         x2,y2 = find_brightest_pixel(test)
         print(x1,y1,x2,y2)
+
+        angle = angle_with_y_axis(x1,y1,x2,y2)
         dist1 = ((x1 - self.x_C)**2 + (y1-self.y_C)**2)**0.5
         dist2 = ((x2 - self.x_C)**2 + (y2-self.y_C)**2)**0.5
         #### Display
@@ -171,4 +175,4 @@ class FrequencyAnalyzer:
             #ax.axvline(x=curve[i[0]][0], color='r', linestyle='--')
         #st.pyplot(fig)
         lm = lr = 0
-        return(x,y,lines, dist1, dist2, lm, lr)
+        return(x,y,lines, dist1, dist2, lm, lr, angle)

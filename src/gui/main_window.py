@@ -33,7 +33,7 @@ class MainFrame(wx.Frame):
         self.splitter_sliders = wx.SplitterWindow(self.splitter2)
 
         # Panel with graphs
-        self.panel_graph = NoteBookResults(parent=self.splitter2, style=wx.SUNKEN_BORDER)
+        self.panel_graph = NoteBookResults(parent=self.splitter2, style=wx.SUNKEN_BORDER, callback=self.notebook_callback)
 
         # Panel with sliders
         self.panel3 = wx.Panel(self.splitter_sliders, style=wx.SUNKEN_BORDER)
@@ -57,14 +57,14 @@ class MainFrame(wx.Frame):
         self.splitter1.SetSashPosition(200) 
 
 
-        self.splitter_sliders.SetSashPosition(220) 
+        self.splitter_sliders.SetSashPosition(300) 
         self.Bind(wx.EVT_SIZE, self.on_resize)
         
         self.thread.start()
         self.Maximize()
         self.Layout()
         self.Show()
-        self.open_loader()
+        #self.open_loader()
 
     def on_close(self,event):
         self.broadcaster_out.put(Message_Queue(0,None))
@@ -98,10 +98,16 @@ class MainFrame(wx.Frame):
         self.panel_error.Refresh()
         self.panel_error.Update()
 
+    def notebook_callback(self, selected):
+        self.title.SetLabel(f"{selected[1]} parameters")
+        for index, slider in enumerate(self.sliders):
+            slider.SetValue(self.sliders_values[selected[0]][index])
+        self.set_sliders_label()
+        self.panel3.Update()
+        self.panel3.Refresh()
 
     def on_resize(self, event):
         # Ajuster la position du séparateur pour fixer la taille du panneau inférieur
-        print("on resize main")
         self.splitter_error.SetSashPosition(self.GetSize().GetHeight() - 100)
 
         left_panel_width = self.splitter1.GetSashPosition()
@@ -163,37 +169,58 @@ class MainFrame(wx.Frame):
         thread.daemon = True
         thread.start()
 
+    def set_sliders_label(self):
+        i = self.panel_graph.get_page()[0]
+        self.label_images_number.SetLabel(f"Number of images {self.sliders_values[i][4]} :")
+        self.label_max.SetLabel(f"Max Value {self.sliders_values[i][1]}:")
+        self.label_mean.SetLabel(f"Mean filter size {1+2*(self.sliders_values[i][3])}:")
+        self.label_min.SetLabel(f"Min Value {self.sliders_values[i][0]}:")
+        self.label_radius.SetLabel(f"Radius {self.sliders_values[i][3]}:")
+
     def add_sliders_to_panel(self, panel):
         slider_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sliders_values = [[4000,40000,1,1,10],[4000,40000,1,3,10]]
 
 
-        self.label_min = wx.StaticText(panel, label="Min Value :")
+        self.title = wx.StaticText(panel, label="Correlation parameters")
+        font = self.title.GetFont()
+        font.SetWeight(wx.FONTWEIGHT_BOLD)
+        self.title.SetFont(font)
+        self.label_min = wx.StaticText(panel, label="")
         
-        slider1 = wx.Slider(panel, value=4000, minValue=2000, maxValue=10000, style=wx.SL_HORIZONTAL)
+        slider1 = wx.Slider(panel, value=self.sliders_values[0][0], minValue=300, maxValue=15000, style=wx.SL_HORIZONTAL)
         slider1.Bind(wx.EVT_LEFT_UP, self.on_slider_change)
+        self.label_max = wx.StaticText(panel, label="")
 
-        self.label_max = wx.StaticText(panel, label="Max Value :")
-        
-        slider2 = wx.Slider(panel, value=40000, minValue=1000, maxValue=65000, style=wx.SL_HORIZONTAL)
+        slider2 = wx.Slider(panel, value=self.sliders_values[0][1], minValue=1000, maxValue=65000, style=wx.SL_HORIZONTAL)
         slider2.Bind(wx.EVT_LEFT_UP, self.on_slider_change)
 
-        self.label_radius = wx.StaticText(panel, label="Radius :")
-        slider3 = wx.Slider(panel, value=1, minValue=1, maxValue=10, style=wx.SL_HORIZONTAL)
+        self.label_radius = wx.StaticText(panel, label="")
+        slider3 = wx.Slider(panel, value=self.sliders_values[0][2], minValue=1, maxValue=10, style=wx.SL_HORIZONTAL)
         slider3.Bind(wx.EVT_LEFT_UP, self.on_slider_change)
 
-        self.label_images_number = wx.StaticText(panel, label="Number of images :")
-        slider4 = wx.Slider(panel, value=10, minValue=10, maxValue=100, style=wx.SL_HORIZONTAL)
+        self.label_mean = wx.StaticText(panel, label=f"")
+        slider4 = wx.Slider(panel, value=self.sliders_values[0][3], minValue=1, maxValue=4, style=wx.SL_HORIZONTAL)
         slider4.Bind(wx.EVT_LEFT_UP, self.on_slider_change_images_number)
 
-        self.sliders = [slider1, slider2, slider3, slider4]
+        self.label_images_number = wx.StaticText(panel, label="")
+        slider5 = wx.Slider(panel, value=self.sliders_values[0][4], minValue=10, maxValue=100, style=wx.SL_HORIZONTAL)
+        slider5.Bind(wx.EVT_LEFT_UP, self.on_slider_change_images_number)
+
+        self.set_sliders_label()
+
+        self.sliders = [slider1, slider2, slider3, slider4, slider5]
+        slider_sizer.Add(self.title,0, wx.ALL | wx.CENTER,5)
         slider_sizer.Add(self.label_min, 0, wx.ALL | wx.LEFT, 5)
         slider_sizer.Add(slider1, 0, wx.EXPAND | wx.ALL, 1)
         slider_sizer.Add(self.label_max, 0, wx.ALL | wx.LEFT, 5)
         slider_sizer.Add(slider2, 0, wx.EXPAND | wx.ALL, 1)
         slider_sizer.Add(self.label_radius, 0, wx.ALL | wx.LEFT, 5)
         slider_sizer.Add(slider3, 0, wx.EXPAND | wx.ALL, 1)
-        slider_sizer.Add(self.label_images_number, 0, wx.ALL | wx.LEFT, 5)
+        slider_sizer.Add(self.label_mean, 0, wx.ALL | wx.LEFT, 5)
         slider_sizer.Add(slider4, 0, wx.EXPAND | wx.ALL, 1)
+        slider_sizer.Add(self.label_images_number, 0, wx.ALL | wx.LEFT, 5)
+        slider_sizer.Add(slider5, 0, wx.EXPAND | wx.ALL, 1)
 
         panel.SetSizer(slider_sizer)
         slider_sizer.Layout()
@@ -202,12 +229,28 @@ class MainFrame(wx.Frame):
         min = self.sliders[0].GetValue()
         max = self.sliders[1].GetValue()
         radius = self.sliders[2].GetValue()
-        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NEW_PARAMS,{"min":min, "max":max,"radius":radius}))
+        
+        page = self.panel_graph.get_page()
+
+        for index,slider in enumerate(self.sliders[0:3]):
+            self.sliders_values[page[0]][index]=slider.GetValue()
+
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NEW_PARAMS,{"min":min, "max":max,"radius":radius, "type": page}))
+        self.set_sliders_label()
+        self.panel3.Update()
+        self.panel3.Refresh()
         event.Skip() 
 
 
     def on_slider_change_images_number(self, event):
-        images_number = self.sliders[3].GetValue()
-        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NEW_NUMBER,{"number":images_number}))
+        images_number = self.sliders[4].GetValue()
+        mean = self.sliders[3].GetValue()
+        page = self.panel_graph.get_page()
+        self.sliders_values[page[0]][3]=mean
+        self.sliders_values[page[0]][4]=images_number
+        self.set_sliders_label()
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_NEW_NUMBER,{"number":images_number, "mean": 1+2*mean,"type":page}))
+        self.panel3.Update()
+        self.panel3.Refresh()
         event.Skip()   
 

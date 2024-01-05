@@ -225,7 +225,6 @@ def load_speckle_images(image_files):
         max_w = max(w, max_w)
         max_h = max(h, max_h)
     max_size = max(max_w, max_h)
-    print(max_size)
     if max_size % 2!=0:
         max_size+=1
     output = []
@@ -252,10 +251,30 @@ def find_brightest_pixel(image):
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(image)
     return max_loc
 
+def align_images_correlation(image1, image2):
+    # Convertir les images en niveaux de gris
+    gray1 = ((image1-image1.min())/(image1.max() - image1.min())*255).astype(np.uint8)
+    gray2 = ((image2-image2.min())/(image2.max() - image2.min())*255).astype(np.uint8)
+
+    # Calculer l'intercorrélation entre les deux images
+    correlation_output = cv2.matchTemplate(gray1, gray2, cv2.TM_CCOEFF_NORMED)
+    
+    # Trouver la position du maximum de corrélation
+    _, _, _, max_loc = cv2.minMaxLoc(correlation_output)
+    return max_loc
+    # Calculer le décalage entre les images
+    #x_offset = max_loc[0]
+    #y_offset = max_loc[1]
+
+    # Aligner la deuxième image sur la première
+    #aligned_image = cv2.warpAffine(image2, np.float32([[1, 0, x_offset], [0, 1, y_offset]]), (image1.shape[1], image1.shape[0]))
+
+
 def align_images(images):
     """ Aligner les images en s'assurant qu'elles ont toutes la même taille finale. """
-    brightest_pixels = [find_brightest_pixel(img) for img in images]
-
+    #brightest_pixels = [find_brightest_pixel(img) for img in images]
+    ref = images[0]
+    brightest_pixels  = [align_images_correlation(ref,img) for img in images]
     # Trouver les décalages maximaux pour aligner les images
     max_x = max([p[0] for p in brightest_pixels])
     max_y = max([p[1] for p in brightest_pixels])
@@ -264,7 +283,8 @@ def align_images(images):
     max_width = max([img.shape[1] + (max_x - x) for img, (x, y) in zip(images, brightest_pixels)])
     max_height = max([img.shape[0] + (max_y - y) for img, (x, y) in zip(images, brightest_pixels)])
 
-    aligned_images = []
+
+    aligned_images = [ref]
     for img, (x, y) in zip(images, brightest_pixels):
         dx, dy = max_x - x, max_y - y
 
@@ -304,7 +324,7 @@ def detect_peaks(image):
 
 
 
-def isolate_peaks(image):
+def isolate_peaks(image, radius=1):
     gray = (255*(image - image.min())/(image.max()-image.min())).astype(np.uint8)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
@@ -312,7 +332,7 @@ def isolate_peaks(image):
 
     res=(fp.fit(blurred)['Xdetect']*blurred)
     (x,y) = find_brightest_pixel(res)
-    res[y,x]=0
+    cv2.circle(res, (x,y),radius,0,-1)
     (x2,y2) = find_brightest_pixel(res)
 
     return (x,y, x2,y2)
@@ -326,3 +346,15 @@ def order_by_peak(images):
     sorted_result = sorted(best_frames, key=lambda x: x[0], reverse=True)
     result = [r[1] for r in sorted_result]
     return result
+
+def angle_with_y_axis(x1, y1, x2, y2):
+    # Calcul de l'angle en radians par rapport à l'axe des X
+    angle_rad = math.atan2(y2 - y1, x2 - x1)
+
+    # Conversion en angle par rapport à l'axe des Y
+    angle_y_rad = math.pi / 2 - angle_rad
+
+    # Conversion de radians en degrés
+    angle_deg = math.degrees(angle_y_rad)
+
+    return angle_deg
