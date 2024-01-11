@@ -41,7 +41,7 @@ class MainController:
 
     def minor_major_star(self):
         try:
-            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,PlotGraph(self.frequencyAnalyzer.get_minus_major_star(),f"{self.star_name} : Minus major star", cmap="viridis",num=3)))
+            self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,PlotGraph(self.frequencyAnalyzer.get_minus_major_star(),f"{self.star_name} : Minus major star", cmap="gray",num=3)))
             return True
         except Exception as e:
             self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ERROR,"Error minoring main peak, the ellipse may be not a good one, please use cursor to redefine it"))

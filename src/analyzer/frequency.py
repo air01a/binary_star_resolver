@@ -153,9 +153,66 @@ class FrequencyAnalyzer:
         dist1 = (abs(curve[peaks[1][0]][0]))
         dist2 = (abs(curve[peaks[0][0]][0]))
         #st.header(f"Distance calculated : {left_max[lm[0]]},{right_max[lr[0]]}, {0.099*(abs(left_max[lm[0]])+abs(right_max[lr[0]]))/2}")
-        test=cv2.GaussianBlur(self.erased_image, (5, 5), 0)
+        #
+        test=cv2.GaussianBlur(self.erased_image, (7, 7), 0)
+        #test = self.erased_image.copy()
+        
+        
+        
         x1, y1= find_brightest_pixel(test)
         cv2.circle(test,(x1,y1),int(self.major_axe/2),0,-1)
+        test2 = test.copy()
+        points=[]
+        brightest = -1
+        X = Y = n_points = 0
+        for i in range(10):
+            a,b = find_brightest_pixel(test2)
+            if brightest<0:
+                brightest=test2[b,a]
+            print(test2[b,a])
+            if test2[b,a]>0.5*brightest:
+                points.append([a,b, test2[b,a]])
+                X+=a
+                Y+=b
+                n_points+=1
+            cv2.circle(test2,(a,b),1,0,-1)
+        print(points)
+        
+
+        points=np.array(points)
+        sum_brightness = np.sum(points[:,2])
+        X=0
+        Y=0
+        tot=0
+        for p in points : 
+            f = p[2]/sum_brightness
+            X+=p[0]*f
+            Y+=p[1]*f
+            tot+=f
+        X = X/tot
+        Y = Y/tot
+        print(X,Y)
+        dist = ((X - self.x_C)**2 + (Y-self.y_C)**2)**0.5
+        print(dist*0.099)
+        
+
+        import imutils
+        test3=(AstroImageProcessing.normalize(self.erased_image)*255).astype(np.uint8)
+        contours = cv2.findContours(AstroImageProcessing.to_int8(test3), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours(contours)
+        cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+        result=[]
+        for cnt in cnts[0:2]:
+            cv2.drawContours(self.erased_image,[cnt],0,self.erased_image.max(),1)
+            M = cv2.moments(cnt)
+            ax1 = int(M["m10"] / M["m00"])
+            ay1 = int(M["m01"] / M["m00"])
+            dist1 = 0.099 * ((ax1 - self.x_C)**2 + (ay1-self.y_C)**2)**0.5
+            result.append(dist1)
+            print("Dist with contours : ", dist1)
+        print("average dist : ", (result[0]+result[1])/2)
+
+
         x2,y2 = find_brightest_pixel(test)
         print(x1,y1,x2,y2)
 

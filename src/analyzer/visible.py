@@ -7,9 +7,9 @@ class VisibleAnalyzer:
 
     def __init__(self):
         self.number_of_images = 10
-        self.min_value = 3000
+        self.min_value = 4000
         self.max_value = 40000
-        self.mean_f = 3
+        self.mean_f = 7
         self.radius=2
 
 

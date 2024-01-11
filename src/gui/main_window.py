@@ -188,7 +188,7 @@ class MainFrame(wx.Frame):
         self.title.SetFont(font)
         self.label_min = wx.StaticText(panel, label="")
         
-        slider1 = wx.Slider(panel, value=self.sliders_values[0][0], minValue=300, maxValue=15000, style=wx.SL_HORIZONTAL)
+        slider1 = wx.Slider(panel, value=self.sliders_values[0][0], minValue=300, maxValue=20000, style=wx.SL_HORIZONTAL)
         slider1.Bind(wx.EVT_LEFT_UP, self.on_slider_change)
         self.label_max = wx.StaticText(panel, label="")
 
