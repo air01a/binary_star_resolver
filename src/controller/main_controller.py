@@ -57,6 +57,11 @@ class MainController:
 
         self.broadcaster_out.put(Message_Queue(4,graph))
         self.broadcaster_out.put(Message_Queue(6,(0.099*min(abs(dist1),abs(dist2)), dist1, dist2, angle)))
+        x,y,y2 = self.frequencyAnalyzer.approximate()
+        graph = PlotGraph((x,y,y2),"Peaks", cmap="viridis", type='plot',num=4, lines=lines,markers=['x','o'], colors=['green','red'],linestyle=['-','--'])
+        #self.broadcaster_out.put(Message_Queue(4,graph))
+        self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_FREQUENCY_GRAPH,graph))
+
         #self.broadcaster_out.put(Message_Queue(5,self.frequencyAnalyzer.rho))
 
     def clip(self):

@@ -16,20 +16,21 @@ class FrequencyGraphsPanel(wx.ScrolledWindow):
         self.figure_mean_filter = PlotUtils.get_figure()
         self.figure_ellipse = PlotUtils.get_figure()
         self.figure_minus = PlotUtils.get_figure()
-
-        self.figures = [self.figure_psd, self.figure_mean_filter,self.figure_ellipse,self.figure_minus]
+        self.figure_simulation = PlotUtils.get_figure()
+        self.figures = [self.figure_psd, self.figure_mean_filter,self.figure_ellipse,self.figure_minus, self.figure_simulation]
 
         self.canvas_psd = FigureCanvas(self, -1, self.figure_psd[0])
         self.canvas_mean_filter = FigureCanvas(self, -1, self.figure_mean_filter[0])
         self.canvas_ellipse = FigureCanvas(self, -1, self.figure_ellipse[0])
         self.canvas_minus = FigureCanvas(self, -1, self.figure_minus[0])
+        self.canvas_simulation = FigureCanvas(self, -1, self.figure_simulation[0])
 
-        self.canvas = [self.canvas_psd, self.canvas_mean_filter, self.canvas_ellipse, self.canvas_minus]
+        self.canvas = [self.canvas_psd, self.canvas_mean_filter, self.canvas_ellipse, self.canvas_minus, self.canvas_simulation]
         self.graph_sizer.Add(self.canvas_psd, 1, wx.EXPAND)
         self.graph_sizer.Add(self.canvas_mean_filter, 1, wx.EXPAND)
         self.graph_sizer.Add(self.canvas_ellipse, 1, wx.EXPAND)
         self.graph_sizer.Add(self.canvas_minus, 1, wx.EXPAND)
-
+        self.graph_sizer.Add(self.canvas_simulation, 1, wx.EXPAND)
         self.SetSizer(self.graph_sizer)
 
 

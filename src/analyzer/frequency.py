@@ -104,6 +104,18 @@ class FrequencyAnalyzer:
         cv2.circle(result,(x,y),2,result.max()*1.1,-1)
         return result
 
+    def approximate(self):
+        from analyzer.approximate import approximate, simulation
+        curve = slice_from_direction(self.spatial_elipse,self.m, (self.x_C,self.y_C))
+        x = [l[0] for l in curve]
+        y = [l[1] for l in curve]
+        print("calculated dist",self.calculated_distance)
+        print("Secondary peak", self.secondary_peak)
+        params = approximate(x,y, (self.secondary_peak-min(y))/(max(y)-min(y)), self.calculated_distance/max(x))
+        y2 = simulation(x, params.x)
+        y = AstroImageProcessing.normalize(np.array(y))
+        y2 = AstroImageProcessing.normalize(np.array(y2))
+        return (x,y,y2)
 
 
     def analyze_peaks(self):
@@ -219,6 +231,9 @@ class FrequencyAnalyzer:
         angle = angle_with_y_axis(x1,y1,x2,y2)
         dist1 = ((x1 - self.x_C)**2 + (y1-self.y_C)**2)**0.5
         dist2 = ((x2 - self.x_C)**2 + (y2-self.y_C)**2)**0.5
+
+        self.calculated_distance = (dist1+dist2)/2
+        self.secondary_peak = self.spatial_elipse[y2,x2]
         #### Display
 
         #st.header("Analyse des pics dans la direction principale de l'ellipse")
@@ -232,4 +247,6 @@ class FrequencyAnalyzer:
             #ax.axvline(x=curve[i[0]][0], color='r', linestyle='--')
         #st.pyplot(fig)
         lm = lr = 0
+
+        
         return(x,y,lines, dist1, dist2, lm, lr, angle)

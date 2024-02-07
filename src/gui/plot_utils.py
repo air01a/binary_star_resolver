@@ -48,12 +48,23 @@ class PlotUtils:
     @staticmethod
     def generate_matplotlib(figure, graph):
         fig, ax = figure
-        
+        marker=None
+        linestyle=None
+        color=None
         if graph.type=='image':
             ax.imshow(graph.graph,cmap=graph.cmap)
         elif graph.type=='plot':
-            (x,y) = graph.graph
-            ax.plot(x,y)
+            x = graph.graph[0]
+            i=0
+            for y in graph.graph[1:]:
+                if graph.markers!=None: 
+                    marker = graph.markers[i]
+                if graph.colors!=None:
+                    color=graph.colors[i]
+                if graph.linestyle!=None:
+                    linestyle = graph.linestyle[i]
+                ax.plot(x,y, marker = marker, color=color, linestyle=linestyle)
+                i+=1
         
         if graph.lines!=None:
             for i in graph.lines:
