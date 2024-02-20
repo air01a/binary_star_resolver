@@ -29,7 +29,7 @@ def approximate(x_init,y_init,A1_init=0.25, d1_init=0.01):
     A1, d1, C, a, b,a2,b2 = result2.x 
     print(0.099*x_init.max()*(-d1))
     print("******************************")
-    return result2
+    return (x_init.max()*(-d1),result2)
 
 def simulation(x,params):
     x = np.array(x)

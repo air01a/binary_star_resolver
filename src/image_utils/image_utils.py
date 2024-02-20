@@ -330,7 +330,7 @@ def isolate_peaks(image, radius=1):
 
     fp = findpeaks(method='mask',denoise="mean")
 
-    res=(fp.fit(blurred)['Xdetect']*blurred)
+    res=(fp.fit(gray)['Xdetect']*blurred)
     (x,y) = find_brightest_pixel(res)
     cv2.circle(res, (x,y),radius,0,-1)
     (x2,y2) = find_brightest_pixel(res)
@@ -358,3 +358,24 @@ def angle_with_y_axis(x1, y1, x2, y2):
     angle_deg = math.degrees(angle_y_rad)
 
     return angle_deg
+
+
+
+def to_polar_coordinates(image):
+    # Obtenir les dimensions de l'image
+    height, width = image.shape[:2]
+    max_radius = np.sqrt((height/2)**2 + (width/2)**2)
+    
+    # Créer une grille en coordonnées polaires
+    r = np.linspace(0, max_radius, max(height, width))
+    theta = np.linspace(0, 2*np.pi, 360)
+    R, Theta = np.meshgrid(r, theta)
+    
+    # Conversion en coordonnées cartésiennes
+    X = R * np.cos(Theta) + width // 2
+    Y = R * np.sin(Theta) + height // 2
+    
+    # Interpolation pour obtenir les valeurs en coordonnées polaires
+    polar_image = cv2.remap(image, X.astype(np.float32), Y.astype(np.float32), cv2.INTER_LINEAR)
+    
+    return polar_image

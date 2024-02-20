@@ -1,6 +1,6 @@
 
 from image_utils.image_utils import calculate_line, calculate_perp, detect_and_remove_lines, erase_principal_disk, \
-                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks,find_brightest_pixel,angle_with_y_axis
+                             find_contours,find_ellipse,get_vector_from_direction, find_peaks, slice_from_direction, detect_peaks,find_brightest_pixel,angle_with_y_axis,to_polar_coordinates
 from image_utils.processing import AstroImageProcessing
 from structure.message_queue import Message_Queue
 import numpy as np
@@ -8,12 +8,13 @@ import cv2
 
 class FrequencyAnalyzer:
 
-    def __init__(self):
+    def __init__(self, result_controller):
         self.min_value = 3000
         self.max_value = 40000
         self.mean_f = 3
         self.radius=2
         self.number_of_images = 10
+        self.result_controller=result_controller
 
 
     def psd(self, images):
@@ -48,7 +49,7 @@ class FrequencyAnalyzer:
         #### Clip image according to filters inputs
         self.spatial_elipse_filtered = (np.clip(self.spatial_elipse.copy(), self.min_value,self.max_value) - self.min_value)/(self.max_value-self.min_value)
 
-        return self.spatial_elipse_filtered
+        return to_polar_coordinates(self.spatial_elipse_filtered)
 
 
     def find_ellipse(self):
@@ -111,10 +112,11 @@ class FrequencyAnalyzer:
         y = [l[1] for l in curve]
         print("calculated dist",self.calculated_distance)
         print("Secondary peak", self.secondary_peak)
-        params = approximate(x,y, (self.secondary_peak-min(y))/(max(y)-min(y)), self.calculated_distance/max(x))
+        d,params = approximate(x,y, (self.secondary_peak-min(y))/(max(y)-min(y)), self.calculated_distance/max(x))
         y2 = simulation(x, params.x)
         y = AstroImageProcessing.normalize(np.array(y))
         y2 = AstroImageProcessing.normalize(np.array(y2))
+        self.result_controller.add_result("Approximation","frequency",d)
         return (x,y,y2)
 
 
@@ -219,11 +221,12 @@ class FrequencyAnalyzer:
             M = cv2.moments(cnt)
             ax1 = int(M["m10"] / M["m00"])
             ay1 = int(M["m01"] / M["m00"])
-            dist1 = 0.099 * ((ax1 - self.x_C)**2 + (ay1-self.y_C)**2)**0.5
+            dist1 = ((ax1 - self.x_C)**2 + (ay1-self.y_C)**2)**0.5
             result.append(dist1)
-            print("Dist with contours : ", dist1)
-        print("average dist : ", (result[0]+result[1])/2)
+            print("Dist with contours : ", 0.099 * dist1)
+        print("average dist : ", 0.099 * (result[0]+result[1])/2)
 
+        #self.result_controller.add_result("Centroid","frequency", (result[0]+result[1])/2)
 
         x2,y2 = find_brightest_pixel(test)
         print(x1,y1,x2,y2)
@@ -234,6 +237,7 @@ class FrequencyAnalyzer:
 
         self.calculated_distance = (dist1+dist2)/2
         self.secondary_peak = self.spatial_elipse[y2,x2]
+        self.result_controller.add_result("Peak Detection","frequency", self.calculated_distance)
         #### Display
 
         #st.header("Analyse des pics dans la direction principale de l'ellipse")
@@ -248,5 +252,4 @@ class FrequencyAnalyzer:
         #st.pyplot(fig)
         lm = lr = 0
 
-        
         return(x,y,lines, dist1, dist2, lm, lr, angle)

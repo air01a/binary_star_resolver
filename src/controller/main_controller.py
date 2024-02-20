@@ -7,14 +7,17 @@ from analyzer.visible import VisibleAnalyzer
 from structure.plot_graph import PlotGraph
 from os.path import isdir, basename, splitext
 import utils.constant as CONSTANT
+from controller.result_controller import ResultController
+
 
 class MainController:
     def __init__(self, broadcaster_gui, broadcaster_out):
         self.broadcaster_gui = broadcaster_gui
         self.broadcaster_out = broadcaster_out
+        self.result_controller = ResultController(0.099)
         thread = threading.Thread(target=self.main_controller)
-        self.frequencyAnalyzer = FrequencyAnalyzer()
-        self.visibleAnalyzer = VisibleAnalyzer()
+        self.frequencyAnalyzer = FrequencyAnalyzer(self.result_controller)
+        self.visibleAnalyzer = VisibleAnalyzer(self.result_controller)
         thread.start()
         self.star_name=""
 
@@ -82,12 +85,13 @@ class MainController:
         (im1, im2) = self.visibleAnalyzer.stack_best(self.images)
         self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_VISIBLE_GRAPH,PlotGraph(im1,f"{self.star_name} : Visible stacking", cmap="viridis")))
         self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_VISIBLE_GRAPH,PlotGraph(im2,f"{self.star_name} : Visible stacking mean", cmap="viridis")))
-        x1,y1,x2,y2,angle = self.visibleAnalyzer.get_peaks()
+        x1,y1,x2,y2,rho, angle = self.visibleAnalyzer.get_peaks()
         im = self.visibleAnalyzer.draw_peaks(im1,x1,y1,x2,y2)
         self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_ADD_VISIBLE_GRAPH,PlotGraph(im,f"{self.star_name} : Peaks in visible", cmap="viridis")))
         if angle<0:
             angle+=360
-        rho = 0.099*((x1-x2)**2 + (y1-y2)**2)**0.5
+
+
         self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_UPDATE_RESULT_VISIBLE,(rho,angle)))
 
 
@@ -99,7 +103,6 @@ class MainController:
             case CONSTANT.EVENT_NEW_DIR:
                 self.broadcaster_out.put(Message_Queue(CONSTANT.EVENT_CLEAR_FREQUENCY_GRAPH,None))
                 if isdir(event_data):
-                    print(event_data)
                     paths = get_image_from_directory(event_data)
                     self.star_name = basename(event_data.rstrip('/'))
                 else:
@@ -137,7 +140,8 @@ class MainController:
                     self.visibleAnalyzer.number_of_images=event_data["number"]
                     self.visibleAnalyzer.mean_f = event_data["mean"]
                     self.visible_calculation_loop()
-
+        self.result_controller.populate_result()
+        self.result_controller.print_result()
 
 
     def main_controller(self):

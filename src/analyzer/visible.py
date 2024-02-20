@@ -5,12 +5,14 @@ from cv2 import circle
 
 class VisibleAnalyzer:
 
-    def __init__(self):
+    def __init__(self,result_controller):
         self.number_of_images = 10
         self.min_value = 4000
         self.max_value = 40000
         self.mean_f = 7
         self.radius=2
+        self.result_controller=result_controller
+
 
 
     def stack_best(self, images):
@@ -31,10 +33,11 @@ class VisibleAnalyzer:
 
     def get_peaks(self):
         #im = np.clip(self.speckle_image.copy(),self.min_value, self.speckle_image.max())
-        x,y,x2,y2 = isolate_peaks(self.speckle_image.copy(), radius = self.radius)
-        angle = angle_with_y_axis(x, y, x2, y2)
-
-        return x,y, x2, y2, angle
+        x1,y1,x2,y2 = isolate_peaks(self.speckle_image.copy(), radius = self.radius)
+        angle = angle_with_y_axis(x1, y1, x2, y2)
+        rho = ((x1-x2)**2 + (y1-y2)**2)**0.5
+        
+        return x1,y1,x2,y2, self.result_controller.add_result("Visible peak", "visible",rho), angle
 
     def draw_peaks(self, image, x, y, x2, y2):
         im = image.copy()
